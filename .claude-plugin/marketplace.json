@@ -1,0 +1,11 @@
+{
+  "name": "codex-panel",
+  "owner": { "name": "Sai Rudra" },
+  "plugins": [
+    {
+      "name": "codex-panel",
+      "source": "./",
+      "description": "A live Codex session in a Claude Code side panel; Claude and Codex message each other."
+    }
+  ]
+}

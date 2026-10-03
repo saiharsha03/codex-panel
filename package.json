@@ -1,0 +1,10 @@
+{
+  "name": "claude-codex-panel",
+  "version": "1.6.1",
+  "description": "Installs the codex-panel mod for Claude Code: a live Codex session in a side panel, and Claude and Codex messaging each other.",
+  "bin": { "claude-codex-panel": "bin/install.js" },
+  "files": ["bin/install.js", "README.md", "LICENSE"],
+  "keywords": ["claude-code", "codex", "plugin", "mod"],
+  "repository": { "type": "git", "url": "git+https://github.com/saiharsha03/codex-panel.git" },
+  "license": "MIT"
+}
