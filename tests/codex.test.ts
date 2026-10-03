@@ -166,3 +166,16 @@ test('a thread still held by a cut-off run is retried, not shown as an error', a
   expect(shown).not.toContain('active writer')
   expect(shown).toContain('✓ waiting for the previous Codex run')
 })
+
+test("Claude's messages run Codex read-only even when the panel is set to YOLO", async ($, on) => {
+  boot(on)
+  await $.session.start({ cwd: 'C:/work/repo' } as any)
+  const ui = await $.ui.mount(PANE as any)
+  await ui.press({ key: 'settings' } as any)
+  await ui.select({ key: 'sandbox', value: 'danger-full-access' } as any)
+  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'from claude' } as any)
+  expect(world.argv.at(-1)).toContain('sandbox_mode="read-only"')
+  await ui.input({ key: 'input', text: 'from me' } as any)
+  expect(world.argv.at(-1)).toContain('sandbox_mode="danger-full-access"')
+  await ui.select({ key: 'sandbox', value: 'read-only' } as any)
+})

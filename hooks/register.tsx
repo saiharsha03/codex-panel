@@ -237,7 +237,10 @@ const runOne = async ($: any, msg: string, from: 'you' | 'claude'): Promise<stri
   const bins = [codexBin, ...(await codexBins($)).filter(b => b !== codexBin)]
   if (mine !== gen) return undefined
   push({ who: from, text: msg })
-  const settings = [...(model === 'default' ? [] : ['-m', model]), '-c', `model_reasoning_effort="${effort}"`, '-c', `sandbox_mode="${sandbox}"`, '--json', '--skip-git-repo-check']
+  // Claude's messages always run read-only: otherwise Claude could reach past its own permission
+  // prompts by asking a can-edit or YOLO Codex to run things for it.
+  const access = from === 'claude' ? 'read-only' : sandbox
+  const settings = [...(model === 'default' ? [] : ['-m', model]), '-c', `model_reasoning_effort="${effort}"`, '-c', `sandbox_mode="${access}"`, '--json', '--skip-git-repo-check']
   const args = thread ? ['exec', 'resume', thread, ...settings, '-'] : ['exec', ...settings, '-']
   const seen = feed.length
     ? `Since your last message, in Claude's session (full transcript, JSONL, read it if you need more: ${transcriptPath || 'unknown'}):\n${feed.join('\n')}\n\n`
@@ -423,8 +426,11 @@ export const register: Register = on => {
     }
     transcriptPath = sessionId ? `${await home($)}/.claude/projects/${root.replace(/[^A-Za-z0-9]/g, '-')}/${sessionId}.jsonl` : ''
     model = String((await storeGet($, 'model')) || model)
-    effort = String((await storeGet($, 'effort')) || effort)
-    sandbox = String((await storeGet($, 'sandbox')) || sandbox)
+    // a stored value outside the known list falls back to read-only
+    const saved = String((await storeGet($, 'sandbox')) || '')
+    sandbox = SANDBOXES.some(s => s.value === saved) ? saved : 'read-only'
+    const savedEffort = String((await storeGet($, 'effort')) || '')
+    if (EFFORTS.includes(savedEffort)) effort = savedEffort
     thread = String((await storeGet($, `thread:${sessionId}`)) || '')
     // a command still marked running was cut off by a reload
     log.splice(0, log.length, ...(((await storeGet($, `log:${sessionId}`)) as Chat[] | undefined) ?? []).filter(r => r.ok !== undefined || r.who !== 'cmd'))

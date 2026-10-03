@@ -96,6 +96,7 @@ The plugin is one hooks module running inside Claude Code. There is no server an
 - **The feed.** Each message to Codex includes your recent prompts, Claude's commands and replies, and the path to Claude's transcript file. Common key and token patterns are hidden first: `sk-…`, `ghp_…`, AWS keys, `Bearer …`, and `password=` / `"api_key": …` values. This is best effort, not a guarantee, and it covers only this feed: what you type in the panel and what Claude sends through the `codex` tool go to Codex as written.
 - **Files.** Codex's sandbox can read files on your machine, Claude's full transcript included. Hiding keys in the feed does not stop Codex from opening a file.
 - **@claude: messages are written by Codex.** Treat them like any other model output. Codex can be misled by content it reads, so read what it asks before letting Claude act on it. Codex only reaches Claude when you started the exchange from the panel.
+- **Claude's messages always run read-only.** Whatever Access you pick applies only to messages you type in the panel. Otherwise Claude could get around its own permission prompts by asking a can-edit or YOLO Codex to run things for it.
 - **YOLO** means Codex can run any command with no sandbox. Use it only when you would let Codex loose in a terminal.
 
 ## Limits
