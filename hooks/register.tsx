@@ -443,7 +443,7 @@ export const register: Register = on => {
         inputSchema: { type: 'object', properties: { message: { type: 'string', description: 'What to tell or ask Codex' } }, required: ['message'] },
       })
       .catch(() => {})
-    void $.ui.open({ id: PANE, title: 'Codex', columns: WIDTH })
+    // the pane stays closed until /codex opens it
     // the spinner turns only while Codex works
     $.clock.every(120, () => (busy || signingIn || setup === 'checking') && $.ui.invalidate('ui.render'))
     $.clock.every(5 * MIN, () => void readLimit($))
