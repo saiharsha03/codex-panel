@@ -350,7 +350,7 @@ const runOne = async ($: any, msg: string, from: 'you' | 'claude'): Promise<stri
 
 // One submit per forward. Claude Code holds it until Claude is free and delivers it once; submit
 // resolves as that turn starts, so the row says waiting until then and delivered after.
-const toClaude = ($: any, text: string) => {
+const toClaude = ($: any, text: string, prompt = `[from Codex, in the Codex panel; reply to it with the codex tool if needed]\n${text}`) => {
   const short = clip(text.replace(/\s+/g, ' '), 50)
   const row: Chat = { who: 'cmd', text: `→ Claude (waiting until Claude is free): ${short}` }
   push(row)
@@ -360,21 +360,22 @@ const toClaude = ($: any, text: string) => {
     void storeSet($, `log:${sessionId}`, log)
     $.ui.invalidate('ui.render')
   }
-  $.prompt.submit({ text: `[from Codex, in the Codex panel; reply to it with the codex tool if needed]\n${text}` }).then(
+  $.prompt.submit({ text: prompt }).then(
     () => settle(true),
     () => settle(false),
   )
   $.ui.invalidate('ui.render')
 }
 
-// Codex's answer to an async message from Claude: delivered as a prompt once Claude is free. Not
-// shown as a "→ Claude" row: the panel already shows the reply, and this is not an @claude: forward.
+// Codex's answer to an async message from Claude: delivered as a prompt once Claude is free, with a
+// "→ Claude" row so a failed delivery shows (Send to Claude resends the reply).
 const wake = ($: any, asked: string, reply: string | undefined) => {
   const q = clip(asked.replace(/\s+/g, ' '), 80)
-  const text = reply
+  const text = reply ?? 'no answer'
+  const prompt = reply
     ? `[from Codex, answering your codex message "${q}"; reply with the codex tool only if needed]\n${reply}`
     : `[from Codex panel] No answer to your codex message "${q}" (stopped, removed from the queue, or it failed; the panel shows why).`
-  $.prompt.submit({ text }).catch(() => {})
+  toClaude($, text, prompt)
 }
 
 // a queued message the developer took back: its caller (Claude's tool call too) gets no answer
@@ -473,7 +474,9 @@ export const register: Register = on => {
   // what Claude's side did, for Codex's next message
   on('turn.start', ($, e, next) => {
     const said = clip(redact(String((e as any).text ?? '').trim()), 600)
-    if (!(e as any).agentId && said && !said.startsWith('[from Codex')) feedPush(`developer: ${said}`)
+    // Claude Code may wrap a plugin's prompt ("The codex-panel plugin sent a message: …"), so look
+    // for the marker near the start, not only at it
+    if (!(e as any).agentId && said && !said.slice(0, 200).includes('[from Codex')) feedPush(`developer: ${said}`)
     return next(e)
   })
 

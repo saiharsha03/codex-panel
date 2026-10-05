@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 // A fake Codex: each run is one JSONL stream; what it was sent is kept.
 const NOW = Date.UTC(2026, 9, 3, 16, 0)
-const world = { inputs: [] as string[], argv: [] as string[][], prompts: [] as string[], reply: 'Looks fine.', installed: true, signedIn: true, writerBusy: 0 }
+const world = { inputs: [] as string[], argv: [] as string[][], prompts: [] as string[], reply: 'Looks fine.', installed: true, signedIn: true, writerBusy: 0, submitFails: false }
 
 const boot = (on: any) => {
   const clock = mock.clock(on, { now: NOW })
@@ -17,6 +17,7 @@ const boot = (on: any) => {
   on('turn.complete', async () => ({ text: '' }) as any)
   on('prompt.submit', async (_$: any, e: any) => {
     world.prompts.push(e.text)
+    if (world.submitFails) throw new Error('submit refused')
     return { text: e.text } as any
   })
   on('tool.call', async () => ({ ref: 'r', result: { stdout: 'ok', stderr: '', interrupted: false }, text: 'ok', isError: false }) as any)
@@ -192,4 +193,26 @@ test("by default Claude's message returns at once and Codex's reply wakes Claude
   const woke = world.prompts.slice(before).filter(p => p.includes('async answer'))
   expect(woke.length).toBe(1)
   expect(woke[0]).toContain('answering your codex message "look later"')
+})
+
+test('a wake Claude Code refuses shows as not delivered in the panel', async ($, on) => {
+  const clock = boot(on)
+  world.reply = 'lost reply'
+  world.submitFails = true
+  await $.session.start({ cwd: 'C:/work/repo' } as any)
+  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'async q' } as any)
+  for (let i = 0; i < 3; i++) await clock.advance(100)
+  world.submitFails = false
+  const ui = await $.ui.mount(PANE as any)
+  expect(await text(ui)).toContain('→ Claude not delivered: lost reply')
+  expect((await ui.findAll({ type: 'Button' })).map((b: any) => b.props?.label)).toContain('✻ Send to Claude')
+})
+
+test("a Codex reply wrapped by Claude Code never goes back to Codex as the developer's prompt", async ($, on) => {
+  boot(on)
+  world.reply = 'ok'
+  await $.session.start({ cwd: 'C:/work/repo' } as any)
+  await $.turn.start({ turnId: 't2', text: 'The codex-panel plugin sent a message:\n[from Codex, answering your codex message "x"]\nasync pong' } as any)
+  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'next', wait: true } as any)
+  expect(world.inputs.at(-1)).not.toContain('async pong')
 })
