@@ -1,1 +1,1 @@
-{ "name": "codex-panel", "version": "1.6.3", "description": "A live Codex session in a side panel: chat with it, pick model, effort and access; Claude and Codex message each other (the codex tool, @claude:), and Codex sees Claude's prompts, tool calls, replies and transcript." }
+{ "name": "codex-panel", "version": "1.7.0", "description": "A live Codex session in a side panel: chat with it, pick model, effort and access; Claude and Codex message each other (the codex tool, @claude:), and Codex sees Claude's prompts, tool calls, replies and transcript." }

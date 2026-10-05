@@ -54,7 +54,7 @@ test('Claude asks Codex through the tool; Codex sees what Claude did, and the pa
   await $.session.start({ cwd: 'C:/work/repo' } as any)
   await $.turn.start({ turnId: 't1', text: 'fix the avg bug' } as any)
   await $.tool.call({ tool: 'Bash', command: 'make test' } as any)
-  const r: any = await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'review my fix' } as any)
+  const r: any = await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'review my fix', wait: true } as any)
   expect(JSON.stringify(r)).toContain('Looks fine.')
   const sent = world.inputs[0]!
   for (const want of ['You are Codex', 'developer: fix the avg bug', 'Claude ran: make test', 'sess-1.jsonl', '[from Claude] review my fix']) expect(sent).toContain(want)
@@ -114,7 +114,7 @@ test('keys in what Claude ran never reach Codex: JSON keys, Bearer headers, quot
   world.reply = 'ok'
   await $.session.start({ cwd: 'C:/work/repo' } as any)
   await $.tool.call({ tool: 'Bash', command: `curl -H "Authorization: Bearer abc123def456ghi789" -d '{"api_key": "plainsecretvalue99"}' --pw "correct horse battery"` } as any)
-  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'check' } as any)
+  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'check', wait: true } as any)
   const sent = world.inputs.at(-1)!
   for (const leak of ['abc123def456ghi789', 'plainsecretvalue99']) expect(sent).not.toContain(leak)
   expect(sent).toContain('Claude ran: curl')
@@ -126,8 +126,8 @@ test('two messages at once both go through, in order, in the same thread', async
   await $.session.start({ cwd: 'C:/work/repo' } as any)
   const before = world.argv.length
   const [a, b]: any[] = await Promise.all([
-    $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'first' } as any),
-    $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'second' } as any),
+    $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'first', wait: true } as any),
+    $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'second', wait: true } as any),
   ])
   expect(JSON.stringify(a)).toContain('done')
   expect(JSON.stringify(b)).toContain('done')
@@ -159,7 +159,7 @@ test('a thread still held by a cut-off run is retried, not shown as an error', a
   world.reply = 'after the wait'
   world.writerBusy = 1
   await $.session.start({ cwd: 'C:/work/repo' } as any)
-  const call = $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'retry me' } as any)
+  const call = $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'retry me', wait: true } as any)
   for (let i = 0; i < 5; i++) await clock.advance(1000)
   expect(JSON.stringify(await call)).toContain('after the wait')
   const shown = await text(await $.ui.mount(PANE as any))
@@ -173,9 +173,23 @@ test("Claude's messages run Codex read-only even when the panel is set to YOLO",
   const ui = await $.ui.mount(PANE as any)
   await ui.press({ key: 'settings' } as any)
   await ui.select({ key: 'sandbox', value: 'danger-full-access' } as any)
-  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'from claude' } as any)
+  await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'from claude', wait: true } as any)
   expect(world.argv.at(-1)).toContain('sandbox_mode="read-only"')
   await ui.input({ key: 'input', text: 'from me' } as any)
   expect(world.argv.at(-1)).toContain('sandbox_mode="danger-full-access"')
   await ui.select({ key: 'sandbox', value: 'read-only' } as any)
+})
+
+test("by default Claude's message returns at once and Codex's reply wakes Claude as a prompt", async ($, on) => {
+  const clock = boot(on)
+  world.reply = 'async answer'
+  await $.session.start({ cwd: 'C:/work/repo' } as any)
+  const before = world.prompts.length
+  const r: any = await $.tool.call({ tool: 'mcp__codex-panel__codex', message: 'look later' } as any)
+  expect(JSON.stringify(r)).toContain('Sent to Codex')
+  expect(JSON.stringify(r)).not.toContain('async answer')
+  for (let i = 0; i < 3; i++) await clock.advance(100)
+  const woke = world.prompts.slice(before).filter(p => p.includes('async answer'))
+  expect(woke.length).toBe(1)
+  expect(woke[0]).toContain('answering your codex message "look later"')
 })

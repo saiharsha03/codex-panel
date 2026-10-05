@@ -86,7 +86,7 @@ The plugin is one hooks module running inside Claude Code. There is no server an
 
 1. **The panel is a Claude Code pane** the plugin draws: a message box, the conversation, and buttons.
 2. **Each message is one Codex run.** The first runs `codex exec --json`, and Codex answers with a thread id. Later messages run `codex exec resume <thread> --json`, so Codex keeps the whole conversation. Its JSONL events stream into the panel as they arrive. The thread id is stored per Claude session, which is why the chat survives a reload.
-3. **Claude → Codex.** The plugin registers a tool, `mcp__codex-panel__codex`. When Claude calls it, the message joins the same thread and Codex's final reply is returned as the tool result.
+3. **Claude → Codex.** The plugin registers a tool, `mcp__codex-panel__codex`. When Claude calls it, the message joins the same thread and the call returns at once, so Claude keeps working; Codex's final reply arrives later as a new prompt to Claude. With `wait: true` the call blocks and returns the reply as the tool result instead.
 4. **Codex → Claude.** If Codex's reply to *your* message has a paragraph starting `@claude:`, the plugin submits that text to Claude as a prompt. Claude Code holds it until Claude is free, then delivers it once.
 5. **Shared context.** The plugin watches Claude's session: your prompts, Claude's tool calls and their results, and Claude's final answers. It keeps a short, redacted log of them and puts it in front of the next message to Codex, with the path to Claude's transcript in case Codex needs more.
 6. **One thing at a time.** A queue makes sure only one Codex run uses the thread at a time. Messages sent meanwhile wait their turn, and Interrupt & send puts yours first.

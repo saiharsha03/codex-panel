@@ -367,6 +367,16 @@ const toClaude = ($: any, text: string) => {
   $.ui.invalidate('ui.render')
 }
 
+// Codex's answer to an async message from Claude: delivered as a prompt once Claude is free. Not
+// shown as a "→ Claude" row: the panel already shows the reply, and this is not an @claude: forward.
+const wake = ($: any, asked: string, reply: string | undefined) => {
+  const q = clip(asked.replace(/\s+/g, ' '), 80)
+  const text = reply
+    ? `[from Codex, answering your codex message "${q}"; reply with the codex tool only if needed]\n${reply}`
+    : `[from Codex panel] No answer to your codex message "${q}" (stopped, removed from the queue, or it failed; the panel shows why).`
+  $.prompt.submit({ text }).catch(() => {})
+}
+
 // a queued message the developer took back: its caller (Claude's tool call too) gets no answer
 const unqueue = ($: any, q: Queued) => {
   const i = queue.indexOf(q)
@@ -439,8 +449,15 @@ export const register: Register = on => {
       .register({
         name: 'codex',
         description:
-          "Send a message to Codex (OpenAI's coding agent), which runs as its own session in the Codex side panel, in the same repo, and shares a thread with the developer. Returns Codex's reply. Use it to ask Codex for a second opinion or review, hand it a task, or answer a message Codex sent you. Codex can be slow (up to a few minutes).",
-        inputSchema: { type: 'object', properties: { message: { type: 'string', description: 'What to tell or ask Codex' } }, required: ['message'] },
+          "Send a message to Codex (OpenAI's coding agent), which runs as its own session in the Codex side panel, in the same repo, and shares a thread with the developer. Use it to ask Codex for a second opinion or review, hand it a task, or answer a message Codex sent you. Returns at once by default; Codex's reply (it can take a few minutes) arrives later as a new message starting [from Codex, answering your codex message ...], so keep working meanwhile. Set wait: true only when you cannot continue without the answer: the call then blocks and returns the reply.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', description: 'What to tell or ask Codex' },
+            wait: { type: 'boolean', description: 'Block until Codex replies and return the reply (default false: reply arrives later as a message)' },
+          },
+          required: ['message'],
+        },
       })
       .catch(() => {})
     // the pane stays closed until /codex opens it
@@ -466,9 +483,19 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // By default the tool returns as soon as the message is queued, so Claude keeps working; Codex's
+  // reply comes back later as a prompt. wait: true blocks until Codex answers, as before.
   on('tool.call', { tool: 'mcp__codex-panel__codex' }, async ($, e) => {
-    const reply = await send($, String((e as any).message ?? ''), 'claude')
-    return reply ? { result: reply } : { deny: 'Codex gave no answer (stopped, or it failed; the Codex panel shows why).' }
+    const a = e as any
+    const message = String(a.message ?? '').trim()
+    if (!message) return { deny: 'Empty message.' }
+    if (a.wait === true) {
+      const reply = await send($, message, 'claude')
+      return reply ? { result: reply } : { deny: 'Codex gave no answer (stopped, or it failed; the Codex panel shows why).' }
+    }
+    const ahead = busy || queue.length > 0
+    void send($, message, 'claude').then(reply => wake($, message, reply))
+    return { result: `Sent to Codex${ahead ? ' (queued behind the current run)' : ''}. Its reply will arrive as a new message; carry on meanwhile.` }
   })
 
   on('tool.call', async ($, e, next) => {
