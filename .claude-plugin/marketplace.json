@@ -1,6 +1,7 @@
 {
   "name": "codex-panel",
-  "owner": { "name": "Sai Rudra" },
+  "owner": { "name": "Sai Rudra", "url": "https://github.com/saiharsha03" },
+  "description": "Codex in a Claude Code side panel, with Claude and Codex messaging each other.",
   "plugins": [
     {
       "name": "codex-panel",

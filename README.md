@@ -27,11 +27,7 @@ week ━━━━━━━━━━━━ 63% left · resets Oct 8
 
 ## Install
 
-```
-npx claude-codex-panel
-```
-
-Or inside Claude Code:
+Inside Claude Code:
 
 ```
 /plugin marketplace add saiharsha03/codex-panel

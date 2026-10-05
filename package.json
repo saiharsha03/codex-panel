@@ -1,6 +1,6 @@
 {
   "name": "claude-codex-panel",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Installs the codex-panel mod for Claude Code: a live Codex session in a side panel, and Claude and Codex messaging each other.",
   "bin": { "claude-codex-panel": "bin/install.js" },
   "files": ["bin/install.js", "README.md", "LICENSE"],
